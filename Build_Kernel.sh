@@ -91,7 +91,7 @@ cd "$WORKSPACE" || error "无法进入工作目录"
 
 # 检查并安装依赖
 info "检查并安装依赖..."
-DEPS=(python3 git curl ccache flex bison libssl-dev libelf-dev bc)
+DEPS=(python3 git curl ccache flex bison libssl-dev libelf-dev bc make)
 MISSING_DEPS=()
 
 for pkg in "${DEPS[@]}"; do
