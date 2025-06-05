@@ -23,7 +23,7 @@ ENABLE_LZ4KD=true
 info "请选择要编译的机型："
 info "1. 一加 Ace 5 Pro"
 info "2. 一加 13"
-info "3. 一加 13T"
+info "3.❌ 一加 13T（暂时会报错请不要使用）"
 read -p "输入选择 [1-3]: " device_choice
 
 case $device_choice in
@@ -47,18 +47,35 @@ case $device_choice in
         ;;
 esac
 
-# 用户输入
+# 自定义补丁
 read -p "输入内核名称修改(可改中文和emoji) [回车默认官核名称]: " input_suffix
 [ -n "$input_suffix" ] && KERNEL_SUFFIX="$input_suffix"
 
-read -p "输入内核构建日期更改(默认为原厂) [默认: Wed Dec 4 02:11:46 UTC 2024]: " input_time
+read -p "输入内核构建日期更改(回车默认为原厂) : " input_time
 [ -n "$input_time" ] && KERNEL_TIME="$input_time"
 
-read -p "是否启用kpm? [y/N]: " kpm
+read -p "是否启用kpm?(回车默认开启) [y/N]: " kpm
 [[ "$kpm" =~ [yY] ]] && ENABLE_KPM=true
 
-read -p "是否启用lz4kd? [y/N]: " lz4
+read -p "是否启用lz4kd?(回车默认开启) [y/N]: " lz4
 [[ "$lz4" =~ [yY] ]] && ENABLE_LZ4KD=true
+
+# SukiSu分支选择
+info "请选择要编译的SukiSu分支："
+info "1. Stable分支(稳定版分支)"
+info "2. dev分支(测试版分支)"
+read -p "输入选择 [1-2]: " branch_choice
+case $branch_choice in
+    1)
+        SUKI_BRANCH="stable"
+        ;;
+    2)
+        SUKI_BRANCH="dev"
+        ;;
+    *)
+        error "无效的选择，请输入1或2"
+        ;;
+esac
 
 # 环境变量 - 按机型区分ccache目录
 export CCACHE_COMPILERCHECK="%compiler% -dumpmachine; %compiler% -dumpversion"
@@ -119,7 +136,7 @@ if [ -z "$GIT_NAME" ] || [ -z "$GIT_EMAIL" ]; then
     git config --global user.name "Q1udaoyu"
     git config --global user.email "sucisama2888@gmail.com"
 else
-    info "Git 已配置"
+    info "Git 已配置："
 fi
 
 # 安装repo工具（仅首次）
@@ -156,7 +173,7 @@ rm -f kernel_platform/msm-kernel/android/abi_gki_protected_exports_*
 # 设置SukiSU
 info "设置SukiSU..."
 cd kernel_platform || error "进入kernel_platform失败"
-curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-dev || error "SukiSU设置失败"
+curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-${SUKI_BRANCH} || error "SukiSU设置失败"
 
 cd KernelSU || error "进入KernelSU目录失败"
 KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 10606)
@@ -363,12 +380,11 @@ mkdir -p "$WIN_OUTPUT_DIR" || info "无法创建Windows目录，可能未挂载C
 
 # 复制Image和AnyKernel3包
 cp "$KERNEL_WORKSPACE/kernel_platform/common/out/arch/arm64/boot/Image" "$WIN_OUTPUT_DIR/"
-cp "$WORKSPACE/AnyKernel3_${KSU_VERSION}_${DEVICE_NAME}_SuKiSu.zip" "$WIN_OUTPUT_DIR/"
+cp "$WORKSPACE/AnyKernel3_${KSU_VERSION}_${DEVICE_NAME}_SuKiSu_${SUKI_BRANCH}.zip" "$WIN_OUTPUT_DIR/"
 
-info "内核包路径: C:/Kernel_Build/${DEVICE_NAME}/SuKiSu_${KSU_VERSION}_${DEVICE_NAME}.zip"
+info "内核包路径: C:/Kernel_Build/${DEVICE_NAME}/AnyKernel3_${KSU_VERSION}_${DEVICE_NAME}_SuKiSu_${SUKI_BRANCH}.zip.zip"
 info "Image路径: C:/Kernel_Build/${DEVICE_NAME}/Image"
 info "请在C盘目录中查找内核包和Image文件。"
 info "清理本次构建的所有文件..."
 sudo rm -rf "$WORKSPACE/kernel_workspace" || info "无法删除工作目录，可能未创建"
 info "清理完成！下次运行脚本将重新拉取源码并构建内核。"
-#sync拉取源码后记录状态，编译成功后恢复原拉取时的状态以便于节省时间及流量？（暂未找到方案，等待解决）

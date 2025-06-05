@@ -10,6 +10,14 @@ on:
        description: "内核构建日期更改(默认官核构建时间)"
        required: true
        default: 'Tue Dec 17 23:36:49 UTC 2024'
+      suki_branch:
+        description: "选择SukiSU分支(Stable=稳定版, Dev=测试版)"
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - dev
       enable_feature_x:
        description: "是否启用kpm"
        required: false
@@ -85,7 +93,7 @@ jobs:
       - name: Set up SukiSU
         run: |
          cd kernel_workspace/kernel_platform
-         curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-stable
+         curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-${{ github.event.inputs.suki_branch }}
          cd ./KernelSU
          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 10606)
          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV

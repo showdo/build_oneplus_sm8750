@@ -1,4 +1,4 @@
-name: OnePlus_13T-Dev
+name: OnePlus_13-stable
 on:
   workflow_dispatch:
     inputs:
@@ -10,6 +10,14 @@ on:
        description: "内核构建日期更改(默认官核构建时间)"
        required: true
        default: 'Tue Dec 17 23:36:49 UTC 2024'
+      suki_branch:
+        description: "选择SukiSU分支(Stable=稳定版, Dev=测试版)"
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - dev
       enable_feature_x:
        description: "是否启用kpm"
        required: false
@@ -25,7 +33,6 @@ on:
        required: false
        default: true
        type: boolean
-      
        
 
 
@@ -77,7 +84,7 @@ jobs:
       - name: Initialize repo and sync
         run: |
          mkdir kernel_workspace && cd kernel_workspace
-         repo init -u https://github.com/HanKuCha/kernel_manifest.git -b refs/heads/oneplus/sm8750 -m oneplus_13t.xml --depth=1
+         repo init -u https://github.com/HanKuCha/kernel_manifest.git -b refs/heads/oneplus/sm8750 -m JiuGeFaCai_oneplus_13_v.xml --depth=1
          repo --trace sync -c -j$(nproc --all) --no-tags
          rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
          rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
@@ -85,7 +92,7 @@ jobs:
       - name: Set up SukiSU
         run: |
          cd kernel_workspace/kernel_platform
-         curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-dev
+         curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-${{ github.event.inputs.suki_branch }}
          cd ./KernelSU
          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 10606)
          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
@@ -110,6 +117,9 @@ jobs:
            cp -r ../SukiSU_patch/other/zram/lz4k_oplus ./common/lib/
            # Apply patches
            cd ./common
+
+           sed -i 's/-32,12 +32,38/-32,11 +32,37/g' 50_add_susfs_in_gki-android15-6.6.patch
+           sed -i '/#include <trace\/hooks\/fs.h>/d' 50_add_susfs_in_gki-android15-6.6.patch
 
            patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
            cp ../../SukiSU_patch/hooks/syscall_hooks.patch ./
@@ -275,7 +285,7 @@ jobs:
           export PATH="/usr/lib/ccache:$PATH"
           sudo apt install libelf-dev
           cd kernel_workspace/kernel_platform/common
-          make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang RUSTC=../../prebuilts/rust/linux-x86/1.73.0b/bin/rustc PAHOLE=../../prebuilts/kernel-build-tools/linux-x86/bin/pahole LD=ld.lld  HOSTLD=ld.lld O=out  gki_defconfig all
+          make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang RUSTC=../../prebuilts/rust/linux-x86/1.73.0b/bin/rustc PAHOLE=../../prebuilts/kernel-build-tools/linux-x86/bin/pahole LD=ld.lld  HOSTLD=ld.lld O=out KCFLAGS+=-O2 gki_defconfig all
           
       - name: Apply Linux Patch
         run: |
@@ -296,5 +306,5 @@ jobs:
       - name: Upload AnyKernel3
         uses: actions/upload-artifact@v4
         with:
-         name: AnyKernel3_${{ env.KSUVER }}_oneplus_13t_Dev
+         name: AnyKernel3_${{ env.KSUVER }}_oneplus_13_Stable
          path: ./AnyKernel3/*
