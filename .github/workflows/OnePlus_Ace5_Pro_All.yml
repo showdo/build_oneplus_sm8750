@@ -1,4 +1,4 @@
-name: OnePlus_Ace5_Pro-Stable 
+name: OnePlus_Ace5_Pro_All
 on:
   workflow_dispatch:
     inputs:

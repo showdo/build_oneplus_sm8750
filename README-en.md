@@ -1,4 +1,4 @@
-**`English`** | [简体中文](README.md)
+[简体中文](README.md) | **`English`** 
 
 [![GitHub](https://img.shields.io/badge/-GitHub|@showdo-181717?logo=github&logoColor=white&style=flat-square)](https://github.com/showdo/build_oneplus_sm8750)
 [![Telegram](https://img.shields.io/badge/Telegram-Channel-blue.svg?logo=telegram)](https://t.me/qdykernel)

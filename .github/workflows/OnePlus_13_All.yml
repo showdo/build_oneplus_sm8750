@@ -1,4 +1,4 @@
-name: OnePlus_13-stable
+name: OnePlus_13_All
 on:
   workflow_dispatch:
     inputs:
