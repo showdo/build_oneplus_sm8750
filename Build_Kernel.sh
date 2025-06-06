@@ -108,7 +108,7 @@ cd "$WORKSPACE" || error "无法进入工作目录"
 
 # 检查并安装依赖
 info "检查并安装依赖..."
-DEPS=(python3 git curl ccache flex bison libssl-dev libelf-dev bc)
+DEPS=(python3 git curl ccache flex bison libssl-dev libelf-dev bc zip)
 MISSING_DEPS=()
 
 for pkg in "${DEPS[@]}"; do
@@ -394,7 +394,7 @@ cp "$KERNEL_WORKSPACE/kernel_platform/common/out/arch/arm64/boot/Image" ./AnyKer
 
 # 打包
 cd AnyKernel3 || error "进入AnyKernel3目录失败"
-zip -r "../AnyKernel3_${KSU_VERSION}_${DEVICE_NAME}_SuKiSu.zip" ./* || error "打包失败"
+zip -r "AnyKernel3_${KSU_VERSION}_${DEVICE_NAME}_SuKiSu.zip" ./* || error "打包失败"
 
 # 创建C盘输出目录（通过WSL访问Windows的C盘）
 WIN_OUTPUT_DIR="/mnt/c/Kernel_Build/${DEVICE_NAME}/"
