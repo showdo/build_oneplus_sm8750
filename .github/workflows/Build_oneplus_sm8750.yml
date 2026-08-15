@@ -116,14 +116,13 @@ jobs:
               echo "REPO_MANIFEST=sm8750_b_16.0.0_oneplus_13t" >> $GITHUB_ENV
               echo "SCHED_FILE=oneplus_13t_b" >> $GITHUB_ENV
               ;;
-            oneplus_pad_2)
-              echo "REPO_MANIFEST=mt6991_b_16.0.0_pad_2" >> $GITHUB_ENV
-              echo "IMAGENAME=Image_Op_Pad_2" >> $GITHUB_ENV
-              echo "SCHED_FILE=oneplus_pad2_mt6991_b" >> $GITHUB_ENV
-              ;;
             oneplus_pad_2_pro)
               echo "REPO_MANIFEST=sm8750_b_16.0.0_pad_2_pro" >> $GITHUB_ENV
               echo "SCHED_FILE=oneplus_pad_2_pro_b" >> $GITHUB_ENV
+              ;;
+            oneplus_pad_2)
+              echo "REPO_MANIFEST=mt6991_b_16.0.0_pad_2" >> $GITHUB_ENV
+              echo "SCHED_FILE=oneplus_pad2_mt6991_b" >> $GITHUB_ENV
               ;;
             oneplus_ace5_ultra)
               echo "REPO_MANIFEST=mt6991_b_16.0.0_oneplus_ace5_ultra" >> $GITHUB_ENV
@@ -134,15 +133,12 @@ jobs:
               echo "SCHED_FILE=oneplus_ace5_ultra_b" >> $GITHUB_ENV
               ;;
             realme_GT7pro)
-              echo "IMAGENAME=Image_Rm_GT_7_Pro" >> $GITHUB_ENV
               echo "SCHED_FILE=oneplus_ace_6" >> $GITHUB_ENV
               ;;
             realme_GT7pro_Speed)
-              echo "IMAGENAME=Image_Rm_GT_7_Pro_Speed" >> $GITHUB_ENV
               echo "SCHED_FILE=oneplus_ace_6" >> $GITHUB_ENV
               ;;
-            realme_GT8)
-              echo "IMAGENAME=Image_Rm_GT_8" >> $GITHUB_ENV
+            realme_GT8)-
               echo "SCHED_FILE=oneplus_ace_6" >> $GITHUB_ENV
           esac
           if [ -z "${{ github.event.inputs.custom_kernel_suffix }}" ]; then
@@ -193,7 +189,8 @@ jobs:
             echo "KERNEL_TIME=${{ github.event.inputs.custom_kernel_time }}" >> $GITHUB_ENV
           fi
 
-      - name: 🛠 Install dependencies and Initialize repo and sync （安装环境依赖+初始化源码仓库及工具链）
+
+      - name: 🛠 Install dependencies and Initialize repo and sync（安装环境依赖 + 初始化源码仓库及工具链）
         run: |
           rm -rf kernel_workspace
           mkdir kernel_workspace
@@ -426,15 +423,8 @@ jobs:
               echo "❌ 未匹配到补丁，风驰补丁暂未支持该机型"
               exit 11
             fi
-          else
-            echo "未启用风驰，则需应用OGKI转换GKI补丁"
-            cd kernel_workspace/common
-            sed -i '1iobj-y += hmbird_patch.o' drivers/Makefile
-            cp "${GITHUB_WORKSPACE}/patch/hmbird_patch.patch" ./hmbird_patch.patch
-            echo "正在打OGKI转换GKI补丁"
-            patch -p1 -F 3 < hmbird_patch.patch
-            echo "OGKI转换GKI_patch完成"
           fi
+          
 
       - name: 🔧 Add Re-Kernel Support (添加 Re-Kernel 支持)
         if: ${{ env.ENABLE_REKERNEL == 'true' }}
@@ -462,6 +452,52 @@ jobs:
               echo "⚠️ 不支持的内核版本: $TARGET"
             fi
           
+      - name: "🔧 应用 Droidspaces 补丁"
+        if: ${{ env.ENABLE_DROIDSPACES == 'true' }}
+        run: |
+          echo "正在启用 Droidspaces 容器支持..."
+            cd kernel_workspace/common
+            # 应用 Droidspaces 容器必须补丁
+            wget https://github.com/cctv18/oppo_oplus_realme_sm8750/raw/refs/heads/main/droidspaces_patch/fix_sysvipc_kabi_6_7_8.patch
+            patch -p1 -F 3 < fix_sysvipc_kabi_6_7_8.patch || true
+            # 修补 oplus_bsp_midas 行为，避免开机崩溃
+            wget https://github.com/cctv18/oppo_oplus_realme_sm8750/raw/refs/heads/main/droidspaces_patch/fix_oplus_bsp_midas.patch
+            patch -p1 -F 3 < fix_oplus_bsp_midas.patch || true
+            # 应用 NTSync 补丁
+            wget https://github.com/cctv18/oppo_oplus_realme_sm8750/raw/refs/heads/main/droidspaces_patch/ntsync_base.patch
+            wget https://github.com/cctv18/oppo_oplus_realme_sm8750/raw/refs/heads/main/droidspaces_patch/ntsync_compat_android15-6.6.patch
+            patch -p1 -F 3 < ntsync_base.patch || true
+            patch -p1 -F 3 < ntsync_compat_android15-6.6.patch || true
+            # 开启 Droidspaces 容器所需内核支持
+            echo "CONFIG_PID_NS=y" >> ./arch/arm64/configs/gki_defconfig
+            echo "CONFIG_IPC_NS=y" >> ./arch/arm64/configs/gki_defconfig
+            echo "CONFIG_USER_NS=y" >> ./arch/arm64/configs/gki_defconfig
+            echo "CONFIG_SYSVIPC=y" >> ./arch/arm64/configs/gki_defconfig
+            echo "CONFIG_DEVTMPFS=y" >> ./arch/arm64/configs/gki_defconfig
+            echo "CONFIG_NAMESPACES=y" >> ./arch/arm64/configs/gki_defconfig
+            echo "CONFIG_POSIX_MQUEUE=y" >> ./arch/arm64/configs/gki_defconfig
+            echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/gki_defconfig
+            echo "CONFIG_NETFILTER_XT_TARGET_LOG=y" >> ./arch/arm64/configs/gki_defconfig
+            echo "CONFIG_NETFILTER_XT_MATCH_RECENT=y" >> ./arch/arm64/configs/gki_defconfig
+            # 未经测试的配置选项，可能导致bug
+            #echo "CONFIG_CGROUP_DEVICE=y" >> ./arch/arm64/configs/gki_defconfig
+            #echo "CONFIG_CGROUP_PIDS=y" >> ./arch/arm64/configs/gki_defconfig
+            #echo "CONFIG_FW_LOADER_COMPRESS=y" >> ./arch/arm64/configs/gki_defconfig
+            #echo "CONFIG_BRIDGE_NETFILTER=y" >> ./arch/arm64/configs/gki_defconfig
+            #echo "CONFIG_NF_TABLES=y" >> ./arch/arm64/configs/gki_defconfig
+            # 开启 NTSync
+            echo "CONFIG_NTSYNC=y" >> ./arch/arm64/configs/gki_defconfig
+            echo "正在启用容器环境扩展支持..."
+            # 开启虚拟 HCI 设备支持
+            echo "CONFIG_BT_HCIVHCI=y" >> ./arch/arm64/configs/gki_defconfig
+            # 开启 systemd-coredump 支持
+            echo "CONFIG_STATIC_USERMODEHELPER=n" >> ./arch/arm64/configs/gki_defconfig
+            # 添加 Lindroid EVDI DRM 驱动
+            wget https://github.com/cctv18/oppo_oplus_realme_sm8750/raw/refs/heads/main/droidspaces_patch/evdi_drm.patch
+            patch -p1 -F 3 < evdi_drm.patch || true
+            echo "CONFIG_DRM_LINDROID_EVDI=y" >> ./arch/arm64/configs/gki_defconfig
+
+      
       - name: 🔧 Add adios_ioscheduler (添加 adios_ioscheduler 支持)
         if: ${{ env.ENABLE_ADIOS == 'true' }}
         working-directory: kernel_workspace/common
@@ -541,47 +577,6 @@ jobs:
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
           patch -p1 -N -F 3 < 69_hide_stuff.patch || true
           echo "[OK] SUSFS 补丁处理流程全部完成"
-          
-      - name: 🔧 Add Droidspaces Support (添加 Droidspaces 支持)
-        if: ${{ env.ENABLE_DROIDSPACES == 'true' }}
-        working-directory: kernel_workspace/common
-        run: |
-          echo "==> 开始添加 Droidspaces 支持"
-          patch_file="Droidspaces_6.6.patch"
-          patch_path="${GITHUB_WORKSPACE}/patch/${patch_file}"
-          
-          if [ ! -f "$patch_path" ]; then
-            echo "::error::Patch 不存在: $patch_path"
-            exit 1
-          fi
-          
-          echo "==> 正在应用: $patch_file"
-          if patch -p1 --forward < "$patch_path"; then
-            echo "==> Patch 应用成功: $patch_file"
-          else
-            echo "::error::Patch 应用失败: $patch_file"
-            exit 1
-          fi
-          echo "==> Droidspaces patch 添加完成"
-
-      - name: 🔧 Apply ntsync Patch (应用 ntsync 补丁)
-        if: ${{ env.ENABLE_DROIDSPACES == 'true' }}
-        working-directory: kernel_workspace/common
-        run: |
-          echo "==> 开始应用 ntsync 补丁..."
-          for PATCH_NAME in "ntsync_base.patch" "ntsync_compat_6.6.patch"; do
-            PATCH_PATH="${GITHUB_WORKSPACE}/patch/${PATCH_NAME}"
-            if [ ! -f "$PATCH_PATH" ]; then
-              echo "::error::未找到 ntsync 补丁: $PATCH_PATH"
-              exit 1
-            fi
-            echo "  应用: $PATCH_NAME"
-            dos2unix "$PATCH_PATH"
-            if ! git apply --ignore-whitespace "$PATCH_PATH"; then
-              echo "::warning::补丁 $PATCH_NAME 应用失败，可能已应用或上下文不匹配"
-            fi
-          done
-          echo "==> ntsync 补丁应用完成"
 
       - name: 🔧 Set gki_defconfig (设置编译配置) 
         run: |
@@ -614,24 +609,8 @@ jobs:
           else
             echo "未启用KSU，将不会集成Root及SUSFS"
           fi
-          if [ "${{ env.ENABLE_DROIDSPACES }}" == 'true' ];then
-            echo "应用Droidspaces推荐配置"
-            echo "CONFIG_SYSVIPC=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_POSIX_MQUEUE=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IPC_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_PID_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_DEVTMPFS=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_NETFILTER_XT_TARGET_REJECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_NETFILTER_XT_TARGET_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_NETFILTER_XT_MATCH_RECENT=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_IP=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_NET=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_NETFILTER_XT_SET=y" >> ./common/arch/arm64/configs/gki_defconfig
-            # ntsync 驱动 (Droidspaces 配套组件)
-            echo "CONFIG_NTSYNC=y" >> ./common/arch/arm64/configs/gki_defconfig
-          fi
+
+
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
 
@@ -769,6 +748,7 @@ jobs:
                   deleted++;
                 }
               }
+
               if (caches.length < 100) {
                 break;
               }
