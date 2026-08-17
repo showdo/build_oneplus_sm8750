@@ -1,0 +1,65 @@
+diff --git a/drivers/gpu/drm/drm_atomic_helper.c b/drivers/gpu/drm/drm_atomic_helper.c
+index 1aa59586c8f81..e81c58193472e 100644
+--- a/drivers/gpu/drm/drm_atomic_helper.c
++++ b/drivers/gpu/drm/drm_atomic_helper.c
+@@ -581,10 +581,9 @@ static int drm_atomic_check_valid_clones(struct drm_atomic_state *state,
+ 									  crtc);
+ 
+ 	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc_state->encoder_mask) {
+-		if (!drm_enc->possible_clones) {
+-			DRM_DEBUG("enc%d possible_clones is 0\n", drm_enc->base.id);
++		if (!(crtc->dev->mode_config.encoder_clones_explicit &
++		      drm_encoder_mask(drm_enc)))
+ 			continue;
+-		}
+ 
+ 		if ((crtc_state->encoder_mask & drm_enc->possible_clones) !=
+ 		    crtc_state->encoder_mask) {
+diff --git a/drivers/gpu/drm/drm_mode_config.c b/drivers/gpu/drm/drm_mode_config.c
+index 87eb591fe9b5b..cc1db643220a8 100644
+--- a/drivers/gpu/drm/drm_mode_config.c
++++ b/drivers/gpu/drm/drm_mode_config.c
+@@ -435,6 +435,7 @@ int drmm_mode_config_init(struct drm_device *dev)
+ 	dev->mode_config.num_connector = 0;
+ 	dev->mode_config.num_crtc = 0;
+ 	dev->mode_config.num_encoder = 0;
++	dev->mode_config.encoder_clones_explicit = 0;
+ 	dev->mode_config.num_total_plane = 0;
+ 
+ 	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+@@ -578,8 +579,12 @@ static u32 full_encoder_mask(struct drm_device *dev)
+  */
+ static void fixup_encoder_possible_clones(struct drm_encoder *encoder)
+ {
+-	if (encoder->possible_clones == 0)
++	if (encoder->possible_clones == 0) {
+ 		encoder->possible_clones = drm_encoder_mask(encoder);
++	} else {
++		encoder->dev->mode_config.encoder_clones_explicit |=
++			drm_encoder_mask(encoder);
++	}
+ }
+ 
+ static void validate_encoder_possible_clones(struct drm_encoder *encoder)
+diff --git a/include/drm/drm_mode_config.h b/include/drm/drm_mode_config.h
+index 973119a9176b2..f8c733c88a10f 100644
+--- a/include/drm/drm_mode_config.h
++++ b/include/drm/drm_mode_config.h
+@@ -480,6 +480,17 @@ struct drm_mode_config {
+ 	 * lifetime of a device and hence doesn't need any locks.
+ 	 */
+ 	int num_encoder;
++#ifndef __GENKSYMS__ /* Placed in an existing hole in the structure. */
++	/**
++	 * @encoder_clones_explicit:
++	 *
++	 * Bitmask of encoders for which the driver explicitly initialized
++	 * &drm_encoder.possible_clones before mode-config validation. Encoders
++	 * without a bit set predate generic clone validation and remain subject
++	 * to the driver's atomic checks.
++	 */
++	u32 encoder_clones_explicit;
++#endif
+ 	/**
+ 	 * @encoder_list:
+ 	 *

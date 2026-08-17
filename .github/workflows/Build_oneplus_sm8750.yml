@@ -451,6 +451,28 @@ jobs:
             else
               echo "⚠️ 不支持的内核版本: $TARGET"
             fi
+
+      - name: 🔧 Apply Screen Flickering Fix (应用屏幕闪烁修复补丁)
+        run: |
+            cd kernel_workspace
+            VERSION=$(awk -F'=' '/^VERSION[ \t]*=/ {gsub(/ /,"",$2); print $2}' common/Makefile)
+            PATCHLEVEL=$(awk -F'=' '/^PATCHLEVEL[ \t]*=/ {gsub(/ /,"",$2); print $2}' common/Makefile)
+            SUBLEVEL=$(awk -F'=' '/^SUBLEVEL[ \t]*=/ {gsub(/ /,"",$2); print $2}' common/Makefile)
+            echo "内核版本: ${VERSION}.${PATCHLEVEL}.${SUBLEVEL}"
+            if [ "${VERSION}.${PATCHLEVEL}.${SUBLEVEL}" = "6.6.118" ]; then
+              cd common
+              PATCH_FILE="${GITHUB_WORKSPACE}/patch/Fix_Screen_Flickering.patch"
+              if [ ! -f "$PATCH_FILE" ]; then
+                echo "::error::未找到屏幕闪烁修复补丁文件"
+                exit 1
+              fi
+              cp "$PATCH_FILE" ./Fix_Screen_Flickering.patch
+              echo "开始应用屏幕闪烁修复补丁"
+              patch -p1 -F 3 < Fix_Screen_Flickering.patch
+              echo "✅ 屏幕闪烁修复补丁应用完成"
+            else
+              echo "⚠️ 内核版本非 6.6.118，跳过屏幕闪烁修复补丁"
+            fi
           
       - name: "🔧 应用 Droidspaces 补丁"
         if: ${{ env.ENABLE_DROIDSPACES == 'true' }}
