@@ -201,10 +201,14 @@ jobs:
           sudo rm -rf /var/lib/man-db/auto-update &&
           sudo apt update &&
           sudo apt-get install -y --no-install-recommends binutils python-is-python3 libssl-dev libelf-dev dos2unix p7zip-full zstd &
-          wget https://github.com/cctv18/oppo_oplus_realme_sm8750/raw/refs/heads/main/lib/ccache-x86-64 -O ccache &&
+          wget --tries=5 --retry-connrefused --timeout=30 https://github.com/cctv18/oppo_oplus_realme_sm8750/raw/refs/heads/main/lib/ccache-x86-64 -O ccache &&
           sudo cp -f ./ccache /usr/bin/ccache &&
           sudo chmod +x /usr/bin/ccache &&
-          rm -f ./ccache &
+          rm -f ./ccache
+          if ! command -v ccache >/dev/null 2>&1 || ! ccache --version >/dev/null 2>&1; then
+            echo "::error::ccache 安装失败"
+            exit 1
+          fi
           echo "正在克隆源码仓库..."
           if [ "${DEVICES_NAME}" = "realme_GT7pro" ] || [ "${DEVICES_NAME}" = "realme_GT7pro_Speed" ] || [ "${DEVICES_NAME}" = "realme_GT8" ]; then
             aria2c -s16 -x16 -k1M https://github.com/realme-kernel-opensource/realme_GT8-AndroidB-common-source/archive/refs/heads/master.zip -o common.zip
@@ -574,7 +578,6 @@ jobs:
 
           
       - name: ⚙️ Set ReSukiSU (设置ReSukiSU)
-        if: ${{ env.ENABLE_KSU == 'true' }}
         id: ksu_step
         run: |
           cd kernel_workspace
